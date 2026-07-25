@@ -3,127 +3,333 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unganisha Business AI Bot</title>
+    <title>Stany Business AI - Connect</title>
     <style>
-        body {
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
+            padding: 20px;
         }
-        .container {
-            background-color: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 40px 35px;
+            max-width: 480px;
             width: 100%;
-            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s ease;
             text-align: center;
         }
-        h2 { color: #075e54; margin-bottom: 10px; }
-        p { color: #666; font-size: 14px; margin-bottom: 20px; }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-            font-size: 16px;
+
+        .card:hover {
+            transform: translateY(-5px);
         }
-        button {
+
+        .logo {
+            font-size: 48px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+            font-size: 16px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .input-group input {
             width: 100%;
-            background-color: #25d366;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border 0.3s ease;
+            background: #f9fafb;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #764ba2;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(118, 75, 162, 0.1);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
             border: none;
-            padding: 12px;
-            font-size: 16px;
-            font-weight: bold;
-            border-radius: 5px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
-        button:hover { background-color: #128c7e; }
-        .code-box {
+
+        .btn-primary:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #result-box {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: 16px;
+            background: #f3f4f6;
             display: none;
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #e1ffc7;
-            border: 2px dashed #4af37b;
-            border-radius: 5px;
+            border: 2px dashed #d1d5db;
+            word-break: break-all;
         }
-        .code {
-            font-size: 24px;
-            font-weight: bold;
-            color: #075e54;
-            letter-spacing: 2px;
+
+        #result-box.success {
+            display: block;
+            background: #ecfdf5;
+            border-color: #34d399;
         }
-        .loading { display: none; color: #666; margin-top: 15px; }
+
+        #result-box.error {
+            display: block;
+            background: #fef2f2;
+            border-color: #f87171;
+        }
+
+        #result-box.loading {
+            display: block;
+            background: #eff6ff;
+            border-color: #60a5fa;
+        }
+
+        .code-display {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: 4px;
+            color: #1f2937;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 12px;
+            display: inline-block;
+            margin: 10px 0;
+            border: 1px solid #d1d5db;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #4b5563;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #764ba2;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 25px;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+
+        .copy-btn {
+            background: #1f2937;
+            color: white;
+            border: none;
+            padding: 6px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .copy-btn:hover {
+            background: #111827;
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Stany Max AI Linker</h2>
-    <p>Weka jina na namba yako ya WhatsApp ili upate kodi ya kuunganisha Bot yako ya biashara 24/7.</p>
-    
-    <input type="text" id="name" placeholder="Jina la Biashara / Mmiliki" required>
-    <input type="text" id="number" placeholder="Mfano: 0712345678 au 255..." required>
-    <button onclick="requestPairingCode()">Omba Pairing Code</button>
+    <div class="card">
+        <div class="logo">🚀 Stany AI</div>
+        <div class="subtitle">Unganisha WhatsApp yako na mfumo wetu</div>
 
-    <div class="loading" id="loading">Tafadhali subiri sekunde chache, tunawasiliana na WhatsApp... ⏳</div>
+        <form id="pairForm">
+            <div class="input-group">
+                <label for="name">Jina Lako / Biashara</label>
+                <input type="text" id="name" placeholder="Mfano: Stany Max" required>
+            </div>
 
-    <div class="code-box" id="codeBox">
-        <p style="margin: 0 0 10px 0; font-weight: bold;">Kodi Yako ya WhatsApp:</p>
-        <div class="code" id="pairingCode">XXXX-XXXX</div>
-        <p style="font-size: 12px; margin-top: 10px; color: #555;">
-            Fungua WhatsApp -> Linked Devices -> Link with phone number kisha ingiza kodi hiyo hapo juu.
-        </p>
+            <div class="input-group">
+                <label for="number">Namba ya WhatsApp</label>
+                <input type="tel" id="number" placeholder="Mfano: 255712345678" required>
+                <small style="color: #6b7280; display: block; margin-top: 4px;">Usiweke +, anza na 255 au 0</small>
+            </div>
+
+            <button type="submit" class="btn-primary" id="submitBtn">
+                <span id="btnText">🔗 Unganisha Sasa</span>
+            </button>
+        </form>
+
+        <!-- Result Box -->
+        <div id="result-box">
+            <div id="resultContent"></div>
+        </div>
+
+        <div class="footer">
+            Powered by Stany Business AI © 2026
+        </div>
     </div>
-</div>
 
-<script>
-    async function requestPairingCode() {
-        const name = document.getElementById('name').value;
-        const number = document.getElementById('number').value;
-        const loading = document.getElementById('loading');
-        const codeBox = document.getElementById('codeBox');
-        const pairingCode = document.getElementById('pairingCode');
+    <script>
+        const form = document.getElementById('pairForm');
+        const nameInput = document.getElementById('name');
+        const numberInput = document.getElementById('number');
+        const submitBtn = document.getElementById('submitBtn');
+        const btnText = document.getElementById('btnText');
+        const resultBox = document.getElementById('result-box');
+        const resultContent = document.getElementById('resultContent');
 
-        if (!name || !number) {
-            alert("Tafadhali jaza maelezo yote!");
-            return;
-        }
-
-        loading.style.display = "block";
-        codeBox.style.display = "none";
-
-        try {
-            // BADILISHA LINK HAPA CHINI NA YA HEROKU APP YAKO
-            const response = await fetch('https://herokuapp.com', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, number })
+        // Helper: Copy to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ Namba imenakiliwa kwenye clipboard!');
+            }).catch(() => {
+                alert('Tafadhali nakili manually: ' + text);
             });
-
-            const data = await response.json();
-            loading.style.display = "none";
-
-            if (data.status) {
-                pairingCode.innerText = data.code;
-                codeBox.style.display = "block";
-            } else {
-                alert("Hitilafu: " + data.error);
-            }
-        } catch (error) {
-            loading.style.display = "none";
-            alert("Imeshindikana kuunganisha na server. Angalia kama server ipo hewani.");
         }
-    }
-</script>
+
+        // Helper: Display result
+        function showResult(type, message, code = null) {
+            resultBox.className = type; // 'success', 'error', 'loading'
+            resultBox.style.display = 'block';
+
+            if (type === 'loading') {
+                resultContent.innerHTML = `
+                    <div class="spinner"></div>
+                    <p class="status-text">Inachakata ombi lako... Tafadhali subiri sekunde chache.</p>
+                `;
+                return;
+            }
+
+            if (type === 'success') {
+                resultContent.innerHTML = `
+                    <p style="color: #065f46; font-weight: 600; margin-bottom: 8px;">✅ Ombi limekubaliwa!</p>
+                    <p style="color: #374151; font-size: 14px;">Huu ndio msimbo wako wa kuunganisha:</p>
+                    <div class="code-display">${code}</div>
+                    <button class="copy-btn" onclick="copyToClipboard('${code}')">📋 Nakili Msimbo</button>
+                    <p style="margin-top: 12px; font-size: 13px; color: #6b7280;">Tumia msimbo huu kwenye WhatsApp yako ili kuanzisha muunganisho.</p>
+                `;
+                return;
+            }
+
+            if (type === 'error') {
+                resultContent.innerHTML = `
+                    <p style="color: #991b1b; font-weight: 600;">❌ Imeshindwa</p>
+                    <p style="color: #4b5563; font-size: 14px;">${message || 'Tatizo la kiufundi. Jaribu tena baadae.'}</p>
+                `;
+                return;
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = nameInput.value.trim();
+            const number = numberInput.value.trim();
+
+            if (!name || !number) {
+                alert('Tafadhali jaza sehemu zote mbili.');
+                return;
+            }
+
+            // Disable button
+            submitBtn.disabled = true;
+            btnText.textContent = '⏳ Inaendelea...';
+
+            // Show loading
+            showResult('loading');
+
+            try {
+                const response = await fetch('/api/pair', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, number }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    showResult('error', data.error || 'Server imejibu kwa makosa.');
+                    return;
+                }
+
+                if (data.status === true) {
+                    showResult('success', 'Unganisho limefanikiwa!', data.code);
+                } else {
+                    showResult('error', data.error || 'Tatizo la muunganisho wa WhatsApp.');
+                }
+
+            } catch (err) {
+                showResult('error', 'Hakuna mawasiliano na server. Hakikisha umeunganisha mtandao.');
+                console.error(err);
+            } finally {
+                submitBtn.disabled = false;
+                btnText.textContent = '🔗 Unganisha Sasa';
+            }
+        });
+
+        // Quick validation on input
+        numberInput.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+    </script>
 
 </body>
 </html>
