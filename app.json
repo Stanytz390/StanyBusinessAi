@@ -3,11 +3,15 @@
   "description": "WhatsApp Business AI Bot inayohudumia wafanyabiashara wengi kwa wakati mmoja kwa kutumia MongoDB pekee.",
   "repository": "https://github.com",
   "logo": "https://node-js-logo.png",
-  "keywords": ["whatsapp", "bot", "baileys", "mongodb", "ai", "business"],
+  "keywords": ["whatsapp", "bot", "baileys", "mongodb", "ai", "business", "telegram"],
   "env": {
     "MONGO_URI": {
       "description": "Weka Connection String ya MongoDB Atlas hapa (mfano: mongodb+srv://...)",
       "required": true
+    },
+    "TELEGRAM_TOKEN": {
+      "description": "Weka Token ya Telegram Bot yako kutoka kwa @BotFather (Sio lazima kama hutumii Telegram)",
+      "required": false
     },
     "PORT": {
       "description": "Port ya kuendeshea API server (Heroku itaweka yenyewe, usibadilishe)",
