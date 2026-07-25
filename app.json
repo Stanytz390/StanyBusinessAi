@@ -1,8 +1,8 @@
 {
-  "name": "Multi-Device Business AI Bot",
+  "name": "StanyBusinessAi",
   "description": "WhatsApp Business AI Bot inayohudumia wafanyabiashara wengi kwa wakati mmoja kwa kutumia MongoDB pekee.",
   "repository": "https://github.com/Stanytz390/StanyBusinessAi",
-  "logo": "https://node-js-logo.png",
+  "logo": "https://herokuapp.com",
   "keywords": ["whatsapp", "bot", "baileys", "mongodb", "ai", "business", "telegram"],
   "env": {
     "MONGO_URI": {
@@ -12,17 +12,12 @@
     "TELEGRAM_TOKEN": {
       "description": "Weka Token ya Telegram Bot yako kutoka kwa @BotFather (Sio lazima kama hutumii Telegram)",
       "required": false
-    },
-    "PORT": {
-      "description": "Port ya kuendeshea API server (Heroku itaweka yenyewe, usibadilishe)",
-      "value": "3000",
-      "required": false
     }
   },
   "formation": {
     "web": {
       "quantity": 1,
-      "size": "eco"
+      "size": "basic"
     }
   }
 }
