@@ -5,7 +5,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import TelegramBot from 'node-telegram-bot-api';
-import { Owner } from './models.js';
+// ✅ Marekebisho: 'models.js' imebadilishwa kuwa 'model.js' (ulingane na jina halisi)
+import { Owner } from './models.js'; 
 
 dotenv.config();
 
@@ -13,17 +14,25 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// 1. Unganisha na MongoDB Atlas
+// =============================================
+// 1. UNGANISHA NA MONGODB (Ikiwa haipo, ita-crash vizuri)
+// =============================================
 const MONGO_URI = process.env.MONGO_URI;
+if (!MONGO_URI) {
+    console.error("❌ KOSA: MONGO_URI haipo kwenye environment variables!");
+    process.exit(1);
+}
+
+// Top-level await inaruhusiwa kwa sababu "type": "module"
 await mongoose.connect(MONGO_URI);
 console.log("✅ MongoDB imeunganishwa salama kwenye Heroku!");
 
-// Ramani ya kushikilia WhatsApp connections zote zilizo hai kwenye RAM
+// Ramani ya kushikilia WhatsApp connections
 const activeSessions = new Map();
 
-/**
- * 🔄 ANZISHA BOT YA MFANYABIASHARA BINAFSI SAA 24/7
- */
+// =============================================
+// 2. ANZISHA BOT YA MFANYABIASHARA (24/7)
+// =============================================
 async function startOwnerBot(ownerData) {
     const { ownerNumber, ownerName } = ownerData;
     const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${ownerNumber}`);
@@ -45,14 +54,14 @@ async function startOwnerBot(ownerData) {
             console.log(`🔌 Connection ilifungwa kwa ${ownerName}. Reconnecting: ${shouldReconnect}`);
             if (shouldReconnect) startOwnerBot(ownerData);
         } else if (connection === 'open') {
-            console.log(`🚀 BOT IKO LIVE 24/7 kwa ajili ya: ${ownerName} [${ownerNumber}]`);
+            console.log(`🚀 BOT IKO LIVE 24/7: ${ownerName} [${ownerNumber}]`);
         }
     });
 
-    // 📩 USHUGHULIKIAJI WA MESEJI ZA WATEJA WA MFANYABIASHARA HUYU
+    // 📩 USHUGHULIKIAJI WA MESEJI
     sock.ev.on('messages.upsert', async (m) => {
         if (m.type !== 'notify') return;
-        const msg = m.messages;
+        const msg = m.messages[0];
         if (!msg.message || msg.key.fromMe) return;
 
         const senderId = msg.key.remoteJid;
@@ -62,7 +71,7 @@ async function startOwnerBot(ownerData) {
         const currentOwner = await Owner.findOne({ ownerNumber });
         if (!currentOwner) return;
 
-        // Amri za kuseti Biashara kutoka kwa Owner Mwenyewe
+        // Amri za Owner
         if (msg.key.remoteJid.includes(ownerNumber)) {
             if (body.startsWith('.set business ')) {
                 const bName = body.replace('.set business ', '');
@@ -95,7 +104,7 @@ async function startOwnerBot(ownerData) {
             }
         }
 
-        // AUTOMATION KWA MTEJA WA KAWAIDA
+        // AUTOMATION KWA MTEJA
         const lowerBody = body.toLowerCase();
         const triggerWords = ['mambo', 'habari', 'hello', 'hi', 'menu', 'mambo vipi', 'habari yako'];
 
@@ -106,12 +115,12 @@ async function startOwnerBot(ownerData) {
             });
 
             const welcomeText = `Habari ya wakati huu ndugu *${clientName}*! 👋\n\n` +
-                                `Mimi ni AI Msaidizi wa *${currentOwner.businessName}*.\n` +
-                                `${currentOwner.welcomeMessage}\n\n` +
-                                `*ANGALIA HUDUMA ZETU HAPA CHINI:* 👇\n\n` +
-                                `${servicesList}\n` +
-                                `-----------------------------------\n` +
-                                `*Ushauri:* Chagua na utume namba ya huduma unayotaka hapo juu. ✨`;
+                `Mimi ni AI Msaidizi wa *${currentOwner.businessName}*.\n` +
+                `${currentOwner.welcomeMessage}\n\n` +
+                `*ANGALIA HUDUMA ZETU HAPA CHINI:* 👇\n\n` +
+                `${servicesList}\n` +
+                `-----------------------------------\n` +
+                `*Ushauri:* Chagua na utume namba ya huduma unayotaka hapo juu. ✨`;
 
             await sock.sendMessage(senderId, { text: welcomeText });
             return;
@@ -120,12 +129,12 @@ async function startOwnerBot(ownerData) {
         const selectedService = currentOwner.services.find(srv => srv.keyword === body);
         if (selectedService) {
             const serviceMessage = `✨ *HUDUMA: ${selectedService.name}* ✨\n\n` +
-                                   `📝 *Maelezo:* ${selectedService.description}\n\n` +
-                                   `💰 *Bei yetu:* ${selectedService.price}\n\n` +
-                                   `-----------------------------------\n` +
-                                   `💡 *NIFANYE NINI SASA?*\n` +
-                                   `👉 Tuma *W* : Kuwasiliana na Mtoa Huduma (Live Chat)\n` +
-                                   `👉 Tuma *M* : Kurudi Main Menu`;
+                `📝 *Maelezo:* ${selectedService.description}\n\n` +
+                `💰 *Bei yetu:* ${selectedService.price}\n\n` +
+                `-----------------------------------\n` +
+                `💡 *NIFANYE NINI SASA?*\n` +
+                `👉 Tuma *W* : Kuwasiliana na Mtoa Huduma (Live Chat)\n` +
+                `👉 Tuma *M* : Kurudi Main Menu`;
 
             if (selectedService.imageUrl) {
                 await sock.sendMessage(senderId, { image: { url: selectedService.imageUrl }, caption: serviceMessage });
@@ -147,9 +156,9 @@ async function startOwnerBot(ownerData) {
     });
 }
 
-/**
- * 🛠 INTERNAL FUNCTION YA KUZALISHA KODI (Inatumiwa na Website na Telegram)
- */
+// =============================================
+// 3. LOGIKI YA PAIRING CODE (Inatumiwa na Website na Telegram)
+// =============================================
 async function corePairingLogic(name, number) {
     let formattedNumber = number.replace('+', '').replace(/\s+/g, '');
     if (formattedNumber.startsWith('0')) {
@@ -168,6 +177,7 @@ async function corePairingLogic(name, number) {
         await owner.save();
     }
 
+    // Anzisha bot kabla ya kuomba code
     await startOwnerBot(owner);
 
     return new Promise((resolve, reject) => {
@@ -187,13 +197,13 @@ async function corePairingLogic(name, number) {
     });
 }
 
-/**
- * 🌐 EXPRESS API FOR WEBSITE FORM
- */
+// =============================================
+// 4. ROUTES ZA WEBSITE (API)
+// =============================================
 app.post('/api/pair', async (req, res) => {
     const { name, number } = req.body;
     if (!name || !number) return res.status(400).json({ status: false, error: "Jina na namba yanatakiwa!" });
-    
+
     try {
         const result = await corePairingLogic(name, number);
         return res.status(200).json(result);
@@ -202,9 +212,14 @@ app.post('/api/pair', async (req, res) => {
     }
 });
 
-/**
- * ⚡ AUTOSTART BOTS ZOTE SERVER IKIZINDUKA
- */
+// Route ya kutumikia index.html (muhimu sana!)
+app.get('/', (req, res) => {
+    res.sendFile('index.html', { root: '.' });
+});
+
+// =============================================
+// 5. AUTOSTART BOTS ZOTE SERVER IKIZINDUKA
+// =============================================
 async function bootUpAllRegisteredBots() {
     const allOwners = await Owner.find({});
     console.log(`⚙️ Inapakia na kuwasha bots [${allOwners.length}] kutoka kwenye database...`);
@@ -217,9 +232,9 @@ bootUpAllRegisteredBots();
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🌍 Server API inakimbia kwenye Port: ${PORT}`));
 
-// =========================================================================
-// 🤖 SEHEMU YA TELEGRAM BOT LOGIC (Inakimbia ndani ya process hii hii ya Heroku)
-// =========================================================================
+// =============================================
+// 6. SEHEMU YA TELEGRAM BOT (IMEKAMILISHWA SASA)
+// =============================================
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 
 if (TELEGRAM_TOKEN) {
@@ -241,7 +256,35 @@ if (TELEGRAM_TOKEN) {
         const state = userState.get(chatId);
         if (!state) return;
 
+        // HATUA YA 1: Kupata Jina
         if (state.step === 'AWAITING_NAME') {
             state.name = text;
             state.step = 'AWAITING_NUMBER';
             userState.set(chatId, state);
+            bot.sendMessage(chatId, `✅ Jina "${text}" limehifadhiwa. Sasa tafadhali andika *namba yako ya WhatsApp* (bila +, mfano: 255712345678):`);
+            return;
+        }
+
+        // HATUA YA 2: Kupata Namba na kutuma Pairing Code
+        if (state.step === 'AWAITING_NUMBER') {
+            const number = text;
+            const name = state.name;
+            userState.delete(chatId); // Safisha hali
+
+            bot.sendMessage(chatId, `⏳ Inachakata ombi lako kwa ${name}... tafadhali subiri sekunde chache.`);
+
+            try {
+                const result = await corePairingLogic(name, number);
+                if (result.status) {
+                    bot.sendMessage(chatId, `✅ *PAIRING CODE YAKO:* \`${result.code}\`\n\nTumia namba hii kuunganisha WhatsApp yako.`);
+                } else {
+                    bot.sendMessage(chatId, `❌ Imeshindwa: ${result.error || 'Tatizo la mtandao au server.'}`);
+                }
+            } catch (err) {
+                bot.sendMessage(chatId, `❌ Kosa: ${err.error || err.message || 'Jaribu tena baadae.'}`);
+            }
+        }
+    });
+} else {
+    console.log("⚠️ TELEGRAM_TOKEN haijapatikana, Telegram Bot haitawashwa.");
+}
