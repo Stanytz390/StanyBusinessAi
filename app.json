@@ -1,0 +1,24 @@
+{
+  "name": "Multi-Device Business AI Bot",
+  "description": "WhatsApp Business AI Bot inayohudumia wafanyabiashara wengi kwa wakati mmoja kwa kutumia MongoDB pekee.",
+  "repository": "https://github.com",
+  "logo": "https://node-js-logo.png",
+  "keywords": ["whatsapp", "bot", "baileys", "mongodb", "ai", "business"],
+  "env": {
+    "MONGO_URI": {
+      "description": "Weka Connection String ya MongoDB Atlas hapa (mfano: mongodb+srv://...)",
+      "required": true
+    },
+    "PORT": {
+      "description": "Port ya kuendeshea API server (Heroku itaweka yenyewe, usibadilishe)",
+      "value": "3000",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  }
+}
