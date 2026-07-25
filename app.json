@@ -1,7 +1,7 @@
 {
   "name": "Multi-Device Business AI Bot",
   "description": "WhatsApp Business AI Bot inayohudumia wafanyabiashara wengi kwa wakati mmoja kwa kutumia MongoDB pekee.",
-  "repository": "https://github.com",
+  "repository": "https://github.com/Stanytz390/StanyBusinessAi",
   "logo": "https://node-js-logo.png",
   "keywords": ["whatsapp", "bot", "baileys", "mongodb", "ai", "business", "telegram"],
   "env": {
