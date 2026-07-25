@@ -1,5 +1,5 @@
 {
-  "name": "multi-wabot-business-ai",
+  "name": "stany-business-ai",
   "version": "1.0.0",
   "main": "server.js",
   "type": "module",
@@ -12,6 +12,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "mongoose": "^8.2.0",
+    "node-telegram-bot-api": "^0.66.0",
     "pino": "^8.19.0",
     "qrcode-terminal": "^0.12.0"
   }
