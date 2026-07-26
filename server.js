@@ -6,7 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import TelegramBot from 'node-telegram-bot-api';
 // ✅ Marekebisho: 'models.js' imebadilishwa kuwa 'model.js' (ulingane na jina halisi)
-import { Owner } from './models.js'; 
+import { Owner } from './model.js'; 
 
 dotenv.config();
 
@@ -37,7 +37,8 @@ async function startOwnerBot(ownerData) {
     const { ownerNumber, ownerName } = ownerData;
     const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${ownerNumber}`);
 
-    const sock = makeWASocket.default({
+    // ✅ FIX: remove .default – makeWASocket is already the function
+    const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
         auth: state,
         printQRInTerminal: false,
