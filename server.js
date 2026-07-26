@@ -47,7 +47,7 @@ function isWithinWorkingHours(owner) {
 }
 
 // =============================================
-// 4. ANZISHA BOT YA MFANYABIASHARA
+// 4. ANZISHA BOT YA MFANYABIASHARA (NO RECONNECT!)
 // =============================================
 async function startOwnerBot(ownerData) {
     const { ownerNumber, ownerName } = ownerData;
@@ -70,20 +70,54 @@ async function startOwnerBot(ownerData) {
     activeSessions.set(ownerNumber, sock);
     sock.ev.on('creds.update', saveCreds);
 
+    // ============================================
+    // CONNECTION UPDATE - NO RECONNECT!
+    // ============================================
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
+        
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== 401;
-            console.log(`🔌 Connection ilifungwa kwa ${ownerName}. Reconnecting: ${shouldReconnect}`);
-            if (shouldReconnect) {
-                setTimeout(() => startOwnerBot(ownerData), 5000);
+            console.log(`🔌 Connection ilifungwa kwa ${ownerName} [${ownerNumber}]. HAKUNA RECONNECT!`);
+            // Hakuna reconnect - tunaondoa session tu
+            if (activeSessions.has(ownerNumber)) {
+                activeSessions.delete(ownerNumber);
             }
-        } else if (connection === 'open') {
-            console.log(`🚀 BOT IKO LIVE 24/7: ${ownerName} [${ownerNumber}]`);
+            return;
+        }
+        
+        if (connection === 'open') {
+            console.log(`🚀 BOT IKO LIVE: ${ownerName} [${ownerNumber}]`);
+            
+            // ============================================
+            // TUMA WELCOME MESSAGE KWA OWNER
+            // ============================================
+            try {
+                const ownerJid = ownerNumber + '@s.whatsapp.net';
+                const welcomeMsg = `🤖 *Karibu ${ownerName}!*\n\n` +
+                    `Biashara yako imeunganishwa kwenye mfumo wa Stany AI.\n\n` +
+                    `📋 *AMRI ZAKU:*\n` +
+                    `🔹 .set business [jina] - Badilisha jina la biashara\n` +
+                    `🔹 .set welcome [ujumbe] - Badilisha ujumbe wa kukaribisha\n` +
+                    `🔹 .set logo (tuma picha) - Badilisha logo ya biashara\n` +
+                    `🔹 .set hours [08:00] [18:00] - Weka saa za kazi\n` +
+                    `🔹 .group on / .group off - Washa/zima bot kwenye groups\n` +
+                    `🔹 .set tag [@botname] - Weka tag ya bot kwenye groups\n` +
+                    `🔹 .add service [keyword]|[name]|[description]|[price] (tuma picha hiari) - Ongeza huduma\n` +
+                    `🔹 .remove service [keyword] - Futa huduma\n` +
+                    `🔹 .my info - Tazama taarifa zako\n\n` +
+                    `✨ *BOT IKO TAYARI KUWASAIDIA WATEJA WAKO!*`;
+                
+                await sock.sendMessage(ownerJid, { text: welcomeMsg });
+                console.log(`✅ Welcome message imetumwa kwa ${ownerName}`);
+            } catch (err) {
+                console.error(`❌ Imeshindwa kutuma welcome message: ${err.message}`);
+            }
         }
     });
 
-    // 📩 USHUGHULIKIAJI WA MESEJI
+    // ============================================
+    // 5. USHUGHULIKIAJI WA MESEJI
+    // ============================================
     sock.ev.on('messages.upsert', async (m) => {
         if (m.type !== 'notify') return;
         const msg = m.messages[0];
@@ -112,24 +146,21 @@ async function startOwnerBot(ownerData) {
         // CHECK GROUP SETTINGS
         // ============================================
         if (isGroup) {
-            // Kama group haijawezeshwa, ignore
             if (!currentOwner.groupEnabled) {
                 return;
             }
-            
-            // Kama ni group, angalia kama mtu amemtaga bot
             const isTagged = msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.includes(ownerNumber + '@s.whatsapp.net');
             if (!isTagged) {
-                return; // Usijibu kama haijatagwa
+                return;
             }
         }
 
         // ============================================
-        // AMRI ZA OWNER (Private chat tu au group)
+        // AMRI ZA OWNER
         // ============================================
         if (isOwner || isGroup) {
             
-            // ---------- .set business [jina] ----------
+            // .set business [jina]
             if (body.startsWith('.set business ')) {
                 const bName = body.replace('.set business ', '');
                 currentOwner.businessName = bName;
@@ -138,7 +169,7 @@ async function startOwnerBot(ownerData) {
                 return;
             }
 
-            // ---------- .set welcome [ujumbe] ----------
+            // .set welcome [ujumbe]
             if (body.startsWith('.set welcome ')) {
                 const wMsg = body.replace('.set welcome ', '');
                 currentOwner.welcomeMessage = wMsg;
@@ -147,16 +178,14 @@ async function startOwnerBot(ownerData) {
                 return;
             }
 
-            // ---------- .set logo [tuma picha] ----------
+            // .set logo (tuma picha)
             if (body === '.set logo') {
-                // Angalia kama kuna picha
                 const imageMsg = msg.message.imageMessage || msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
                 if (!imageMsg) {
                     await sock.sendMessage(senderId, { text: `❌ Tafadhali tuma picha pamoja na command .set logo` });
                     return;
                 }
                 
-                // Pakua picha
                 const buffer = await sock.downloadMediaMessage(msg);
                 const filename = `logo_${ownerNumber}_${Date.now()}.jpg`;
                 const filepath = path.join('./uploads', filename);
@@ -171,7 +200,7 @@ async function startOwnerBot(ownerData) {
                 return;
             }
 
-            // ---------- .set hours [start] [end] ----------
+            // .set hours [start] [end]
             if (body.startsWith('.set hours ')) {
                 const parts = body.replace('.set hours ', '').split(' ');
                 if (parts.length === 2) {
@@ -183,7 +212,7 @@ async function startOwnerBot(ownerData) {
                 }
             }
 
-            // ---------- .group on / .group off ----------
+            // .group on / .group off
             if (body === '.group on') {
                 currentOwner.groupEnabled = true;
                 await currentOwner.save();
@@ -197,7 +226,7 @@ async function startOwnerBot(ownerData) {
                 return;
             }
 
-            // ---------- .set tag [jina la tag] ----------
+            // .set tag [jina la tag]
             if (body.startsWith('.set tag ')) {
                 const tag = body.replace('.set tag ', '');
                 currentOwner.groupTag = tag;
@@ -206,11 +235,10 @@ async function startOwnerBot(ownerData) {
                 return;
             }
 
-            // ---------- .add service [keyword]|[name]|[description]|[price] ----------
+            // .add service [keyword]|[name]|[description]|[price]
             if (body.startsWith('.add service ')) {
                 const parts = body.replace('.add service ', '').split('|');
                 if (parts.length >= 4) {
-                    // Angalia kama kuna picha
                     let imageUrl = "";
                     const imageMsg = msg.message.imageMessage || msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
                     if (imageMsg) {
@@ -235,7 +263,7 @@ async function startOwnerBot(ownerData) {
                 }
             }
 
-            // ---------- .remove service [keyword] ----------
+            // .remove service [keyword]
             if (body.startsWith('.remove service ')) {
                 const keyword = body.replace('.remove service ', '').trim();
                 currentOwner.services = currentOwner.services.filter(s => s.keyword !== keyword);
@@ -244,7 +272,7 @@ async function startOwnerBot(ownerData) {
                 return;
             }
 
-            // ---------- .my info ----------
+            // .my info
             if (body === '.my info') {
                 let info = `📊 *TAARIFA ZA BOT YAKO*\n\n`;
                 info += `🏢 Biashara: *${currentOwner.businessName}*\n`;
@@ -336,7 +364,7 @@ async function startOwnerBot(ownerData) {
 }
 
 // =============================================
-// 5. LOGIKI YA PAIRING CODE
+// 6. LOGIKI YA PAIRING CODE
 // =============================================
 async function corePairingLogic(name, number) {
     let formattedNumber = number.replace('+', '').replace(/\s+/g, '');
@@ -376,7 +404,7 @@ async function corePairingLogic(name, number) {
 }
 
 // =============================================
-// 6. ROUTES ZA API
+// 7. ROUTES ZA API
 // =============================================
 app.post('/api/pair', async (req, res) => {
     const { name, number } = req.body;
@@ -398,7 +426,98 @@ app.get('/', (req, res) => {
 });
 
 // =============================================
-// 7. AUTOSTART BOTS
+// 8. ADMIN ROUTES
+// =============================================
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+
+app.post('/api/admin/login', (req, res) => {
+    const { password } = req.body;
+    if (password === ADMIN_PASSWORD) {
+        res.json({ success: true, token: 'admin-token-' + Date.now() });
+    } else {
+        res.status(401).json({ success: false, message: 'Password sahihi' });
+    }
+});
+
+app.get('/api/admin/owners', async (req, res) => {
+    try {
+        const owners = await Owner.find({});
+        res.json(owners);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/admin/owner/:id', async (req, res) => {
+    try {
+        const owner = await Owner.findById(req.params.id);
+        if (!owner) return res.status(404).json({ error: 'Not found' });
+        res.json(owner);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/admin/owner/:id', async (req, res) => {
+    try {
+        const owner = await Owner.findById(req.params.id);
+        if (!owner) return res.status(404).json({ error: 'Not found' });
+
+        const sessionDir = `./sessions/${owner.ownerNumber}`;
+        if (fs.existsSync(sessionDir)) {
+            fs.rmSync(sessionDir, { recursive: true, force: true });
+        }
+
+        await Owner.findByIdAndDelete(req.params.id);
+        
+        if (activeSessions.has(owner.ownerNumber)) {
+            const sock = activeSessions.get(owner.ownerNumber);
+            if (sock) await sock.end();
+            activeSessions.delete(owner.ownerNumber);
+        }
+
+        res.json({ success: true, message: 'Owner imefutwa!' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/admin/owner/:ownerId/service/:serviceIndex', async (req, res) => {
+    try {
+        const owner = await Owner.findById(req.params.ownerId);
+        if (!owner) return res.status(404).json({ error: 'Owner not found' });
+
+        const index = parseInt(req.params.serviceIndex);
+        if (index < 0 || index >= owner.services.length) {
+            return res.status(400).json({ error: 'Invalid service index' });
+        }
+
+        owner.services.splice(index, 1);
+        await owner.save();
+        res.json({ success: true, message: 'Service imefutwa!' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/admin/stats', async (req, res) => {
+    try {
+        const totalOwners = await Owner.countDocuments();
+        const allOwners = await Owner.find({});
+        let totalServices = 0;
+        allOwners.forEach(o => totalServices += o.services.length);
+        res.json({ totalOwners, totalServices });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/admin', (req, res) => {
+    res.sendFile('admin.html', { root: '.' });
+});
+
+// =============================================
+// 9. AUTOSTART BOTS (Hakuna reconnect)
 // =============================================
 async function bootUpAllRegisteredBots() {
     const allOwners = await Owner.find({});
@@ -413,12 +532,18 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🌍 Server API inakimbia kwenye Port: ${PORT}`));
 
 // =============================================
-// 8. TELEGRAM BOT (Hiari)
+// 10. TELEGRAM BOT (Imerakibishwa)
 // =============================================
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 
 if (TELEGRAM_TOKEN) {
-    const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+    const bot = new TelegramBot(TELEGRAM_TOKEN, { 
+        polling: { 
+            autoStart: true,
+            dropPendingUpdates: true,
+            params: { timeout: 60 }
+        } 
+    });
     const userState = new Map();
     console.log("🤖 Telegram Linker Engine imewashwa rasmi!");
 
@@ -463,6 +588,16 @@ if (TELEGRAM_TOKEN) {
             }
         }
     });
+
+    // Handle polling errors
+    bot.on('polling_error', (err) => {
+        if (err.code === 'ETELEGRAM' && err.message.includes('409 Conflict')) {
+            console.log('⚠️ Telegram conflict ignored. Only one bot is running.');
+        } else {
+            console.error('Telegram polling error:', err.message);
+        }
+    });
+
 } else {
     console.log("⚠️ TELEGRAM_TOKEN haijapatikana, Telegram Bot haitawashwa.");
 }
