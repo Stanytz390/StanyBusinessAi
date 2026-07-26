@@ -6,12 +6,14 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import TelegramBot from 'node-telegram-bot-api';
 import { Owner } from './models.js';
+import fs from 'fs';
+import path from 'path';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // =============================================
 // 1. UNGANISHA NA MONGODB
@@ -31,11 +33,32 @@ console.log("✅ MongoDB imeunganishwa salama!");
 const activeSessions = new Map();
 
 // =============================================
-// 3. ANZISHA BOT YA MFANYABIASHARA
+// 3. CHECK WORKING HOURS
+// =============================================
+function isWithinWorkingHours(owner) {
+    if (!owner.workingHoursStart || !owner.workingHoursEnd) return true;
+    
+    const now = new Date();
+    const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    const start = owner.workingHoursStart;
+    const end = owner.workingHoursEnd;
+    
+    return currentTime >= start && currentTime <= end;
+}
+
+// =============================================
+// 4. ANZISHA BOT YA MFANYABIASHARA
 // =============================================
 async function startOwnerBot(ownerData) {
     const { ownerNumber, ownerName } = ownerData;
-    const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${ownerNumber}`);
+    
+    // Hakikisha folder ya sessions ipo
+    const sessionDir = `./sessions/${ownerNumber}`;
+    if (!fs.existsSync(sessionDir)) {
+        fs.mkdirSync(sessionDir, { recursive: true });
+    }
+    
+    const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
 
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
@@ -52,7 +75,9 @@ async function startOwnerBot(ownerData) {
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== 401;
             console.log(`🔌 Connection ilifungwa kwa ${ownerName}. Reconnecting: ${shouldReconnect}`);
-            if (shouldReconnect) startOwnerBot(ownerData);
+            if (shouldReconnect) {
+                setTimeout(() => startOwnerBot(ownerData), 5000);
+            }
         } else if (connection === 'open') {
             console.log(`🚀 BOT IKO LIVE 24/7: ${ownerName} [${ownerNumber}]`);
         }
@@ -65,14 +90,46 @@ async function startOwnerBot(ownerData) {
         if (!msg.message || msg.key.fromMe) return;
 
         const senderId = msg.key.remoteJid;
+        const isGroup = senderId.endsWith('@g.us');
         const clientName = msg.pushName || "Mteja";
         const body = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").trim();
 
         const currentOwner = await Owner.findOne({ ownerNumber });
         if (!currentOwner) return;
 
-        // Amri za Owner
-        if (msg.key.remoteJid.includes(ownerNumber)) {
+        // ============================================
+        // CHECK WORKING HOURS (Kwa wateja wasio owner)
+        // ============================================
+        const isOwner = senderId.includes(ownerNumber);
+        if (!isOwner && !isWithinWorkingHours(currentOwner)) {
+            await sock.sendMessage(senderId, { 
+                text: `⏰ Samahani, bot yetu inafanya kazi kuanzia *${currentOwner.workingHoursStart}* hadi *${currentOwner.workingHoursEnd}*. Tafadhali rudi wakati huo. Asante!` 
+            });
+            return;
+        }
+
+        // ============================================
+        // CHECK GROUP SETTINGS
+        // ============================================
+        if (isGroup) {
+            // Kama group haijawezeshwa, ignore
+            if (!currentOwner.groupEnabled) {
+                return;
+            }
+            
+            // Kama ni group, angalia kama mtu amemtaga bot
+            const isTagged = msg.message.extendedTextMessage?.contextInfo?.mentionedJid?.includes(ownerNumber + '@s.whatsapp.net');
+            if (!isTagged) {
+                return; // Usijibu kama haijatagwa
+            }
+        }
+
+        // ============================================
+        // AMRI ZA OWNER (Private chat tu au group)
+        // ============================================
+        if (isOwner || isGroup) {
+            
+            // ---------- .set business [jina] ----------
             if (body.startsWith('.set business ')) {
                 const bName = body.replace('.set business ', '');
                 currentOwner.businessName = bName;
@@ -80,6 +137,8 @@ async function startOwnerBot(ownerData) {
                 await sock.sendMessage(senderId, { text: `✅ Jina la biashara limebadilishwa kuwa: *${bName}*` });
                 return;
             }
+
+            // ---------- .set welcome [ujumbe] ----------
             if (body.startsWith('.set welcome ')) {
                 const wMsg = body.replace('.set welcome ', '');
                 currentOwner.welcomeMessage = wMsg;
@@ -87,77 +146,197 @@ async function startOwnerBot(ownerData) {
                 await sock.sendMessage(senderId, { text: `✅ Ujumbe wa kukaribisha wateja umesasishwa!` });
                 return;
             }
+
+            // ---------- .set logo [tuma picha] ----------
+            if (body === '.set logo') {
+                // Angalia kama kuna picha
+                const imageMsg = msg.message.imageMessage || msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
+                if (!imageMsg) {
+                    await sock.sendMessage(senderId, { text: `❌ Tafadhali tuma picha pamoja na command .set logo` });
+                    return;
+                }
+                
+                // Pakua picha
+                const buffer = await sock.downloadMediaMessage(msg);
+                const filename = `logo_${ownerNumber}_${Date.now()}.jpg`;
+                const filepath = path.join('./uploads', filename);
+                
+                if (!fs.existsSync('./uploads')) fs.mkdirSync('./uploads');
+                fs.writeFileSync(filepath, buffer);
+                
+                const imageUrl = `https://${process.env.HOST || 'localhost'}/uploads/${filename}`;
+                currentOwner.businessLogo = imageUrl;
+                await currentOwner.save();
+                await sock.sendMessage(senderId, { text: `✅ Logo ya biashara imebadilishwa!` });
+                return;
+            }
+
+            // ---------- .set hours [start] [end] ----------
+            if (body.startsWith('.set hours ')) {
+                const parts = body.replace('.set hours ', '').split(' ');
+                if (parts.length === 2) {
+                    currentOwner.workingHoursStart = parts[0];
+                    currentOwner.workingHoursEnd = parts[1];
+                    await currentOwner.save();
+                    await sock.sendMessage(senderId, { text: `✅ Saa za kazi zimewekwa: *${parts[0]}* hadi *${parts[1]}*` });
+                    return;
+                }
+            }
+
+            // ---------- .group on / .group off ----------
+            if (body === '.group on') {
+                currentOwner.groupEnabled = true;
+                await currentOwner.save();
+                await sock.sendMessage(senderId, { text: `✅ Bot imewashwa kwenye groups! Sasa itajibu tu pale unapotag @bot.` });
+                return;
+            }
+            if (body === '.group off') {
+                currentOwner.groupEnabled = false;
+                await currentOwner.save();
+                await sock.sendMessage(senderId, { text: `✅ Bot imezimwa kwenye groups.` });
+                return;
+            }
+
+            // ---------- .set tag [jina la tag] ----------
+            if (body.startsWith('.set tag ')) {
+                const tag = body.replace('.set tag ', '');
+                currentOwner.groupTag = tag;
+                await currentOwner.save();
+                await sock.sendMessage(senderId, { text: `✅ Tag ya bot imewekwa kuwa: *${tag}*` });
+                return;
+            }
+
+            // ---------- .add service [keyword]|[name]|[description]|[price] ----------
             if (body.startsWith('.add service ')) {
                 const parts = body.replace('.add service ', '').split('|');
                 if (parts.length >= 4) {
+                    // Angalia kama kuna picha
+                    let imageUrl = "";
+                    const imageMsg = msg.message.imageMessage || msg.message.extendedTextMessage?.contextInfo?.quotedMessage?.imageMessage;
+                    if (imageMsg) {
+                        const buffer = await sock.downloadMediaMessage(msg);
+                        const filename = `service_${ownerNumber}_${Date.now()}.jpg`;
+                        const filepath = path.join('./uploads', filename);
+                        if (!fs.existsSync('./uploads')) fs.mkdirSync('./uploads');
+                        fs.writeFileSync(filepath, buffer);
+                        imageUrl = `https://${process.env.HOST || 'localhost'}/uploads/${filename}`;
+                    }
+
                     currentOwner.services.push({
                         keyword: parts[0].trim(),
                         name: parts[1].trim(),
                         description: parts[2].trim(),
                         price: parts[3].trim(),
-                        imageUrl: parts[4] ? parts[4].trim() : ""
+                        imageUrl: imageUrl
                     });
                     await currentOwner.save();
                     await sock.sendMessage(senderId, { text: `✅ Huduma ya *${parts[1].trim()}* imeongezwa!` });
                     return;
                 }
             }
-        }
 
-        // AUTOMATION KWA MTEJA
-        const lowerBody = body.toLowerCase();
-        const triggerWords = ['mambo', 'habari', 'hello', 'hi', 'menu', 'mambo vipi', 'habari yako'];
-
-        if (triggerWords.includes(lowerBody)) {
-            let servicesList = "";
-            currentOwner.services.forEach(srv => {
-                servicesList += `👉 Bonyeza *${srv.keyword}* : kupata ${srv.name}\n`;
-            });
-
-            const welcomeText = `Habari ya wakati huu ndugu *${clientName}*! 👋\n\n` +
-                `Mimi ni AI Msaidizi wa *${currentOwner.businessName}*.\n` +
-                `${currentOwner.welcomeMessage}\n\n` +
-                `*ANGALIA HUDUMA ZETU HAPA CHINI:* 👇\n\n` +
-                `${servicesList}\n` +
-                `-----------------------------------\n` +
-                `*Ushauri:* Chagua na utume namba ya huduma unayotaka hapo juu. ✨`;
-
-            await sock.sendMessage(senderId, { text: welcomeText });
-            return;
-        }
-
-        const selectedService = currentOwner.services.find(srv => srv.keyword === body);
-        if (selectedService) {
-            const serviceMessage = `✨ *HUDUMA: ${selectedService.name}* ✨\n\n` +
-                `📝 *Maelezo:* ${selectedService.description}\n\n` +
-                `💰 *Bei yetu:* ${selectedService.price}\n\n` +
-                `-----------------------------------\n` +
-                `💡 *NIFANYE NINI SASA?*\n` +
-                `👉 Tuma *W* : Kuwasiliana na Mtoa Huduma (Live Chat)\n` +
-                `👉 Tuma *M* : Kurudi Main Menu`;
-
-            if (selectedService.imageUrl) {
-                await sock.sendMessage(senderId, { image: { url: selectedService.imageUrl }, caption: serviceMessage });
-            } else {
-                await sock.sendMessage(senderId, { text: serviceMessage });
+            // ---------- .remove service [keyword] ----------
+            if (body.startsWith('.remove service ')) {
+                const keyword = body.replace('.remove service ', '').trim();
+                currentOwner.services = currentOwner.services.filter(s => s.keyword !== keyword);
+                await currentOwner.save();
+                await sock.sendMessage(senderId, { text: `✅ Huduma ya *${keyword}* imefutwa!` });
+                return;
             }
-            return;
+
+            // ---------- .my info ----------
+            if (body === '.my info') {
+                let info = `📊 *TAARIFA ZA BOT YAKO*\n\n`;
+                info += `🏢 Biashara: *${currentOwner.businessName}*\n`;
+                info += `🆔 Namba: *${currentOwner.ownerNumber}*\n`;
+                info += `⏰ Saa za kazi: *${currentOwner.workingHoursStart}* - *${currentOwner.workingHoursEnd}*\n`;
+                info += `👥 Groups: ${currentOwner.groupEnabled ? '✅ ImeWASHWA' : '❌ ImeZIMWA'}\n`;
+                info += `🏷️ Tag: *${currentOwner.groupTag || 'Hajaseti'}*\n`;
+                info += `📋 Huduma: *${currentOwner.services.length}*\n`;
+                await sock.sendMessage(senderId, { text: info });
+                return;
+            }
         }
 
-        if (lowerBody === 'w') {
-            await sock.sendMessage(senderId, { text: "📞 Ombi lako limepokelewa. Mtoa huduma wetu wa kibinadamu anakwenda kuwasiliana na wewe hivi punde!" });
-        } else if (lowerBody === 'm') {
-            let servicesList = "";
-            currentOwner.services.forEach(srv => {
-                servicesList += `👉 Bonyeza *${srv.keyword}* : ${srv.name}\n`;
-            });
-            await sock.sendMessage(senderId, { text: `📋 *MAIN MENU - ${currentOwner.businessName}*\n\n${servicesList}` });
+        // ============================================
+        // AUTOMATION KWA MTEJA (Private chat tu)
+        // ============================================
+        if (!isGroup) {
+            const lowerBody = body.toLowerCase();
+            const triggerWords = ['mambo', 'habari', 'hello', 'hi', 'menu', 'mambo vipi', 'habari yako', 'start', 'hujambo'];
+
+            if (triggerWords.includes(lowerBody)) {
+                let servicesList = "";
+                currentOwner.services.forEach((srv, index) => {
+                    servicesList += `${index+1}. *${srv.keyword}* - ${srv.name} (${srv.price})\n`;
+                });
+
+                const welcomeText = `👋 *HABARI ${clientName.toUpperCase()}!*\n\n` +
+                    `Mimi ni AI Msaidizi wa *${currentOwner.businessName}*.\n` +
+                    `${currentOwner.welcomeMessage}\n\n` +
+                    `📋 *HUDUMA ZETU:*\n${servicesList}\n\n` +
+                    `💡 *AMRI ZA MSINGI:*\n` +
+                    `👉 Tuma *menu* kuona orodha kamili\n` +
+                    `👉 Tuma *[keyword]* kuona maelezo ya huduma\n` +
+                    `👉 Tuma *W* kuwasiliana na mtoa huduma\n` +
+                    `👉 Tuma *M* kurudi kwenye menyu kuu\n\n` +
+                    `_Asante kwa kutuchagua!_ ✨`;
+
+                if (currentOwner.businessLogo) {
+                    await sock.sendMessage(senderId, { 
+                        image: { url: currentOwner.businessLogo }, 
+                        caption: welcomeText 
+                    });
+                } else {
+                    await sock.sendMessage(senderId, { text: welcomeText });
+                }
+                return;
+            }
+
+            // Huduma iliyochaguliwa
+            const selectedService = currentOwner.services.find(srv => srv.keyword === body);
+            if (selectedService) {
+                const serviceMessage = `✨ *${selectedService.name}* ✨\n\n` +
+                    `📝 ${selectedService.description}\n\n` +
+                    `💰 *Bei:* ${selectedService.price}\n\n` +
+                    `-----------------------------------\n` +
+                    `💡 Tuma *W* kuwasiliana na mtoa huduma\n` +
+                    `💡 Tuma *M* kurudi menyu`;
+
+                if (selectedService.imageUrl) {
+                    await sock.sendMessage(senderId, { 
+                        image: { url: selectedService.imageUrl }, 
+                        caption: serviceMessage 
+                    });
+                } else {
+                    await sock.sendMessage(senderId, { text: serviceMessage });
+                }
+                return;
+            }
+
+            if (lowerBody === 'w' || lowerBody === 'wasiliana') {
+                await sock.sendMessage(senderId, { 
+                    text: "📞 Ombi lako limepokelewa. Mtoa huduma wetu atawasiliana na wewe hivi punde!" 
+                });
+                return;
+            }
+
+            if (lowerBody === 'm' || lowerBody === 'menu') {
+                let servicesList = "";
+                currentOwner.services.forEach((srv, index) => {
+                    servicesList += `${index+1}. *${srv.keyword}* - ${srv.name} (${srv.price})\n`;
+                });
+                await sock.sendMessage(senderId, { 
+                    text: `📋 *MENU KUU - ${currentOwner.businessName}*\n\n${servicesList}\n\nTuma keyword ya huduma unayotaka.` 
+                });
+                return;
+            }
         }
     });
 }
 
 // =============================================
-// 4. LOGIKI YA PAIRING CODE
+// 5. LOGIKI YA PAIRING CODE
 // =============================================
 async function corePairingLogic(name, number) {
     let formattedNumber = number.replace('+', '').replace(/\s+/g, '');
@@ -171,7 +350,7 @@ async function corePairingLogic(name, number) {
             ownerName: name,
             ownerNumber: formattedNumber,
             services: [
-                { keyword: "1", name: "Sample Service", description: "Tumia amri ya .add service kubadilisha haya", price: "TSH 10,000" }
+                { keyword: "1", name: "Sample Service", description: "Tumia .add service kubadilisha", price: "TSH 10,000" }
             ]
         });
         await owner.save();
@@ -197,7 +376,7 @@ async function corePairingLogic(name, number) {
 }
 
 // =============================================
-// 5. ROUTES ZA API
+// 6. ROUTES ZA API
 // =============================================
 app.post('/api/pair', async (req, res) => {
     const { name, number } = req.body;
@@ -211,12 +390,15 @@ app.post('/api/pair', async (req, res) => {
     }
 });
 
+// Serve static files (uploads)
+app.use('/uploads', express.static('uploads'));
+
 app.get('/', (req, res) => {
     res.sendFile('index.html', { root: '.' });
 });
 
 // =============================================
-// 6. AUTOSTART BOTS
+// 7. AUTOSTART BOTS
 // =============================================
 async function bootUpAllRegisteredBots() {
     const allOwners = await Owner.find({});
@@ -231,7 +413,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🌍 Server API inakimbia kwenye Port: ${PORT}`));
 
 // =============================================
-// 7. TELEGRAM BOT (Hiari - Inafanya kazi 100%)
+// 8. TELEGRAM BOT (Hiari)
 // =============================================
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 
@@ -267,7 +449,7 @@ if (TELEGRAM_TOKEN) {
             const name = state.name;
             userState.delete(chatId);
 
-            bot.sendMessage(chatId, `⏳ Inachakata ombi lako kwa ${name}... tafadhali subiri sekunde chache.`);
+            bot.sendMessage(chatId, `⏳ Inachakata ombi lako... tafadhali subiri sekunde chache.`);
 
             try {
                 const result = await corePairingLogic(name, number);
