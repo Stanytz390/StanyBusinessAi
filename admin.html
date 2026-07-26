@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Stany Business AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: #0f172a;
+            min-height: 100vh;
+            padding: 20px;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            padding: 20px 30px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .header h1 {
+            font-size: 28px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stats {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            background: #334155;
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 14px;
+        }
+        .stat-item span {
+            font-weight: 700;
+            color: #94a3b8;
+        }
+        .stat-item .num {
+            color: #60a5fa;
+            font-weight: 800;
+            font-size: 18px;
+        }
+        .login-box {
+            max-width: 400px;
+            margin: 100px auto;
+            background: #1e293b;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            background: #0f172a;
+            color: white;
+            font-size: 16px;
+            margin: 15px 0;
+        }
+        .login-box button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .login-box button:hover {
+            transform: scale(1.02);
+            opacity: 0.9;
+        }
+        .login-box .error {
+            color: #f87171;
+            margin-top: 10px;
+        }
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            background: #1e293b;
+            padding: 15px 20px;
+            border-radius: 12px;
+            align-items: center;
+        }
+        .filters input, .filters select {
+            padding: 10px 14px;
+            border: 2px solid #334155;
+            border-radius: 8px;
+            background: #0f172a;
+            color: white;
+            font-size: 14px;
+            flex: 1;
+            min-width: 150px;
+        }
+        .filters button {
+            padding: 10px 24px;
+            background: #334155;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .filters button:hover {
+            background: #475569;
+        }
+        .filters .clear-btn {
+            background: #dc2626;
+        }
+        .filters .clear-btn:hover {
+            background: #b91c1c;
+        }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 20px;
+        }
+        .owner-card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+            transition: 0.3s;
+            position: relative;
+        }
+        .owner-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+        }
+        .owner-card .name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+        .owner-card .number {
+            color: #94a3b8;
+            font-size: 14px;
+            margin: 4px 0 8px;
+        }
+        .owner-card .business {
+            color: #60a5fa;
+            font-weight: 600;
+        }
+        .owner-card .badge {
+            display: inline-block;
+            background: #334155;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+        .owner-card .services {
+            margin-top: 12px;
+        }
+        .owner-card .service-item {
+            background: #0f172a;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            border: 1px solid #334155;
+        }
+        .owner-card .service-item .del {
+            color: #f87171;
+            cursor: pointer;
+            font-weight: 700;
+            padding: 0 6px;
+            background: none;
+            border: none;
+            font-size: 16px;
+        }
+        .owner-card .service-item .del:hover {
+            color: #ef4444;
+        }
+        .owner-card .actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .owner-card .actions button {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 13px;
+        }
+        .owner-card .actions .delete-btn {
+            background: #dc2626;
+            color: white;
+        }
+        .owner-card .actions .delete-btn:hover {
+            background: #b91c1c;
+        }
+        .owner-card .actions .view-btn {
+            background: #2563eb;
+            color: white;
+        }
+        .owner-card .actions .view-btn:hover {
+            background: #1d4ed8;
+        }
+        .empty {
+            text-align: center;
+            color: #94a3b8;
+            padding: 60px 0;
+            font-size: 18px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        .spinner {
+            border: 4px solid #334155;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #1e293b;
+            padding: 16px 30px;
+            border-radius: 12px;
+            border-left: 5px solid #22c55e;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+            display: none;
+            max-width: 400px;
+            z-index: 999;
+        }
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+        .toast.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-content h2 { margin-bottom: 16px; }
+        .modal-content pre {
+            background: #0f172a;
+            padding: 16px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .modal-content .close-btn {
+            margin-top: 16px;
+            padding: 10px 24px;
+            background: #334155;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        @media (max-width: 600px) {
+            .header { flex-direction: column; align-items: stretch; }
+            .stats { justify-content: space-around; }
+            .card-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="app">
+    <!-- Login Section -->
+    <div id="loginSection" class="login-box">
+        <h2 style="margin-bottom: 10px;">🔐 Admin Login</h2>
+        <p style="color: #94a3b8; margin-bottom: 20px;">Ingiza password ya admin</p>
+        <input type="password" id="adminPassword" placeholder="Password" />
+        <button onclick="login()">Ingia</button>
+        <div id="loginError" class="error"></div>
+    </div>
+
+    <!-- Main Dashboard (hidden after login) -->
+    <div id="dashboardSection" style="display: none;">
+        <div class="header">
+            <h1>📊 Stany Admin Panel</h1>
+            <div class="stats">
+                <div class="stat-item"><span>👥 Owners:</span> <span class="num" id="totalOwners">0</span></div>
+                <div class="stat-item"><span>📦 Services:</span> <span class="num" id="totalServices">0</span></div>
+                <div class="stat-item"><span>🟢 Active:</span> <span class="num" id="activeSessions">0</span></div>
+            </div>
+            <button onclick="logout()" style="background:#dc2626; border:none; color:white; padding:8px 20px; border-radius:30px; cursor:pointer;">🚪 Logout</button>
+        </div>
+
+        <div class="filters">
+            <input type="text" id="searchInput" placeholder="🔍 Tafuta kwa jina, namba, biashara..." oninput="filterCards()" />
+            <select id="sortSelect" onchange="filterCards()">
+                <option value="newest">📅 Mpya</option>
+                <option value="oldest">📅 Zamani</option>
+                <option value="name">🔤 Jina</option>
+            </select>
+            <button onclick="fetchOwners()" style="background:#2563eb;">🔄 Refresh</button>
+            <button class="clear-btn" onclick="clearFilters()">✖️ Futa</button>
+        </div>
+
+        <div id="ownersContainer" class="card-grid">
+            <div class="loading"><div class="spinner"></div><p>Loading...</p></div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="toast"></div>
+
+<!-- Modal for viewing owner details -->
+<div id="detailModal" class="modal">
+    <div class="modal-content">
+        <h2 id="modalTitle">Maelezo</h2>
+        <pre id="modalBody"></pre>
+        <button class="close-btn" onclick="closeModal()">Funga</button>
+    </div>
+</div>
+
+<script>
+    let token = '';
+    let ownersData = [];
+
+    // ---------- LOGIN ----------
+    function login() {
+        const password = document.getElementById('adminPassword').value;
+        if (!password) {
+            document.getElementById('loginError').textContent = 'Tafadhali ingiza password.';
+            return;
+        }
+        fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                token = data.token;
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('dashboardSection').style.display = 'block';
+                document.getElementById('loginError').textContent = '';
+                fetchOwners();
+                fetchStats();
+            } else {
+                document.getElementById('loginError').textContent = data.message || 'Password sahihi.';
+            }
+        })
+        .catch(() => {
+            document.getElementById('loginError').textContent = 'Tatizo la server. Jaribu tena.';
+        });
+    }
+
+    function logout() {
+        token = '';
+        document.getElementById('loginSection').style.display = 'block';
+        document.getElementById('dashboardSection').style.display = 'none';
+    }
+
+    // ---------- FETCH DATA ----------
+    function fetchOwners() {
+        const container = document.getElementById('ownersContainer');
+        container.innerHTML = `<div class="loading"><div class="spinner"></div><p>Loading...</p></div>`;
+
+        fetch('/api/admin/owners')
+            .then(res => res.json())
+            .then(data => {
+                ownersData = data;
+                renderCards(data);
+            })
+            .catch(() => {
+                container.innerHTML = `<div class="empty">❌ Imeshindwa kupakia data.</div>`;
+            });
+    }
+
+    function fetchStats() {
+        fetch('/api/admin/stats')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('totalOwners').textContent = data.totalOwners || 0;
+                document.getElementById('totalServices').textContent = data.totalServices || 0;
+                // Active sessions count (tunaweza kuhesabu kutoka activeSessions but sisi tunatumia map)
+                // Kwa sasa tunakadiria
+                const activeCount = ownersData.filter(o => o.isActive).length || 0;
+                document.getElementById('activeSessions').textContent = activeCount;
+            })
+            .catch(() => {});
+    }
+
+    // ---------- RENDER CARDS ----------
+    function renderCards(data) {
+        const container = document.getElementById('ownersContainer');
+        if (!data || data.length === 0) {
+            container.innerHTML = `<div class="empty">📭 Hakuna owners waliojisajili bado.</div>`;
+            return;
+        }
+
+        let html = '';
+        data.forEach(owner => {
+            const servicesHtml = owner.services.map((srv, idx) => `
+                <div class="service-item">
+                    <span><strong>${srv.keyword}</strong> - ${srv.name} (${srv.price})</span>
+                    <button class="del" onclick="deleteService('${owner._id}', ${idx})">✖</button>
+                </div>
+            `).join('');
+
+            html += `
+                <div class="owner-card" data-id="${owner._id}">
+                    <div class="name">${owner.ownerName}</div>
+                    <div class="number">📱 ${owner.ownerNumber}</div>
+                    <div class="business">🏢 ${owner.businessName || 'Hajaseti'}</div>
+                    <div class="badge">🕒 ${owner.workingHoursStart || '08:00'} - ${owner.workingHoursEnd || '18:00'}</div>
+                    <div class="badge" style="background:${owner.groupEnabled ? '#22c55e' : '#f87171'}">
+                        ${owner.groupEnabled ? '✅ Group ON' : '❌ Group OFF'}
+                    </div>
+                    ${owner.businessLogo ? `<div class="badge">🖼️ Logo ipo</div>` : ''}
+                    <div class="services">
+                        <strong>Huduma (${owner.services.length})</strong>
+                        ${servicesHtml || '<p style="color:#94a3b8;font-size:13px;">Hakuna huduma</p>'}
+                    </div>
+                    <div class="actions">
+                        <button class="view-btn" onclick="viewOwner('${owner._id}')">👁️ View</button>
+                        <button class="delete-btn" onclick="deleteOwner('${owner._id}')">🗑️ Futa</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    }
+
+    // ---------- FILTER & SORT ----------
+    function filterCards() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const sort = document.getElementById('sortSelect').value;
+
+        let filtered = ownersData.filter(o => {
+            return o.ownerName.toLowerCase().includes(search) ||
+                   o.ownerNumber.includes(search) ||
+                   (o.businessName && o.businessName.toLowerCase().includes(search));
+        });
+
+        // Sort
+        if (sort === 'newest') {
+            filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        } else if (sort === 'oldest') {
+            filtered.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+        } else if (sort === 'name') {
+            filtered.sort((a, b) => a.ownerName.localeCompare(b.ownerName));
+        }
+
+        renderCards(filtered);
+    }
+
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('sortSelect').value = 'newest';
+        filterCards();
+    }
+
+    // ---------- DELETE OWNER ----------
+    function deleteOwner(id) {
+        if (!confirm('Je, una uhakika unataka kufuta owner huyu na data zake zote? Hatua hii haiwezi kubatilishwa!')) return;
+
+        fetch(`/api/admin/owner/${id}`, {
+            method: 'DELETE'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast('✅ Owner imefutwa!');
+                fetchOwners();
+                fetchStats();
+            } else {
+                showToast('❌ Imeshindwa: ' + data.error, 'error');
+            }
+        })
+        .catch(() => showToast('❌ Tatizo la server.', 'error'));
+    }
+
+    // ---------- DELETE SERVICE ----------
+    function deleteService(ownerId, index) {
+        if (!confirm('Futa huduma hii?')) return;
+
+        fetch(`/api/admin/owner/${ownerId}/service/${index}`, {
+            method: 'DELETE'
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                showToast('✅ Huduma imefutwa!');
+                fetchOwners();
+                fetchStats();
+            } else {
+                showToast('❌ Imeshindwa: ' + data.error, 'error');
+            }
+        })
+        .catch(() => showToast('❌ Tatizo la server.', 'error'));
+    }
+
+    // ---------- VIEW OWNER (Modal) ----------
+    function viewOwner(id) {
+        fetch(`/api/admin/owner/${id}`)
+            .then(res => res.json())
+            .then(owner => {
+                document.getElementById('modalTitle').textContent = `👤 ${owner.ownerName}`;
+                document.getElementById('modalBody').textContent = JSON.stringify(owner, null, 2);
+                document.getElementById('detailModal').classList.add('show');
+            })
+            .catch(() => showToast('❌ Imeshindwa kupata maelezo.', 'error'));
+    }
+
+    function closeModal() {
+        document.getElementById('detailModal').classList.remove('show');
+    }
+
+    // Close modal on outside click
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    // ---------- TOAST ----------
+    function showToast(msg, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.className = 'toast show ' + type;
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ---------- AUTO REFRESH (30s) ----------
+    setInterval(() => {
+        if (token) fetchOwners();
+    }, 30000);
+</script>
+
+</body>
+</html>
