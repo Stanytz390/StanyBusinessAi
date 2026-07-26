@@ -1,12 +1,11 @@
-import makeWASocket, { useMultiFileAuthState } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import mongoose from 'mongoose';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import TelegramBot from 'node-telegram-bot-api';
-// ✅ Marekebisho: 'models.js' imebadilishwa kuwa 'model.js' (ulingane na jina halisi)
-import { Owner } from './model.js'; 
+import { Owner } from './models.js';
 
 dotenv.config();
 
@@ -15,7 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 // =============================================
-// 1. UNGANISHA NA MONGODB (Ikiwa haipo, ita-crash vizuri)
+// 1. UNGANISHA NA MONGODB
 // =============================================
 const MONGO_URI = process.env.MONGO_URI;
 if (!MONGO_URI) {
@@ -23,21 +22,21 @@ if (!MONGO_URI) {
     process.exit(1);
 }
 
-// Top-level await inaruhusiwa kwa sababu "type": "module"
 await mongoose.connect(MONGO_URI);
-console.log("✅ MongoDB imeunganishwa salama kwenye Heroku!");
+console.log("✅ MongoDB imeunganishwa salama!");
 
-// Ramani ya kushikilia WhatsApp connections
+// =============================================
+// 2. RAMANI YA SESSIONS ZA WHATSAPP
+// =============================================
 const activeSessions = new Map();
 
 // =============================================
-// 2. ANZISHA BOT YA MFANYABIASHARA (24/7)
+// 3. ANZISHA BOT YA MFANYABIASHARA
 // =============================================
 async function startOwnerBot(ownerData) {
     const { ownerNumber, ownerName } = ownerData;
     const { state, saveCreds } = await useMultiFileAuthState(`./sessions/${ownerNumber}`);
 
-    // ✅ FIX: remove .default – makeWASocket is already the function
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
         auth: state,
@@ -158,7 +157,7 @@ async function startOwnerBot(ownerData) {
 }
 
 // =============================================
-// 3. LOGIKI YA PAIRING CODE (Inatumiwa na Website na Telegram)
+// 4. LOGIKI YA PAIRING CODE
 // =============================================
 async function corePairingLogic(name, number) {
     let formattedNumber = number.replace('+', '').replace(/\s+/g, '');
@@ -178,7 +177,6 @@ async function corePairingLogic(name, number) {
         await owner.save();
     }
 
-    // Anzisha bot kabla ya kuomba code
     await startOwnerBot(owner);
 
     return new Promise((resolve, reject) => {
@@ -199,7 +197,7 @@ async function corePairingLogic(name, number) {
 }
 
 // =============================================
-// 4. ROUTES ZA WEBSITE (API)
+// 5. ROUTES ZA API
 // =============================================
 app.post('/api/pair', async (req, res) => {
     const { name, number } = req.body;
@@ -213,13 +211,12 @@ app.post('/api/pair', async (req, res) => {
     }
 });
 
-// Route ya kutumikia index.html (muhimu sana!)
 app.get('/', (req, res) => {
     res.sendFile('index.html', { root: '.' });
 });
 
 // =============================================
-// 5. AUTOSTART BOTS ZOTE SERVER IKIZINDUKA
+// 6. AUTOSTART BOTS
 // =============================================
 async function bootUpAllRegisteredBots() {
     const allOwners = await Owner.find({});
@@ -234,7 +231,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🌍 Server API inakimbia kwenye Port: ${PORT}`));
 
 // =============================================
-// 6. SEHEMU YA TELEGRAM BOT (IMEKAMILISHWA SASA)
+// 7. TELEGRAM BOT (Hiari - Inafanya kazi 100%)
 // =============================================
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 
@@ -257,7 +254,6 @@ if (TELEGRAM_TOKEN) {
         const state = userState.get(chatId);
         if (!state) return;
 
-        // HATUA YA 1: Kupata Jina
         if (state.step === 'AWAITING_NAME') {
             state.name = text;
             state.step = 'AWAITING_NUMBER';
@@ -266,11 +262,10 @@ if (TELEGRAM_TOKEN) {
             return;
         }
 
-        // HATUA YA 2: Kupata Namba na kutuma Pairing Code
         if (state.step === 'AWAITING_NUMBER') {
             const number = text;
             const name = state.name;
-            userState.delete(chatId); // Safisha hali
+            userState.delete(chatId);
 
             bot.sendMessage(chatId, `⏳ Inachakata ombi lako kwa ${name}... tafadhali subiri sekunde chache.`);
 
